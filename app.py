@@ -2132,7 +2132,7 @@ class PutioTUI(App):
         )
 
 
-if __name__ == "__main__":
+def main():
     # Accept token as argument or env var
     if len(sys.argv) > 1 and not sys.argv[1].startswith("-"):
         os.environ["PUTIO_TOKEN"] = sys.argv[1]
@@ -2152,3 +2152,7 @@ if __name__ == "__main__":
     os.environ["PUTIO_TOKEN"] = token
     app = PutioTUI()
     app.run(mouse=False)
+
+
+if __name__ == "__main__":
+    main()
