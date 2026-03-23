@@ -1,6 +1,6 @@
 # putio-tui
 
-A terminal UI client for [put.io](https://put.io), inspired by Midnight Commander.
+A terminal UI client for [put.io](https://put.io).
 
 ![putio-tui screenshot](screenshot.png)
 
