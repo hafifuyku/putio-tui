@@ -2061,8 +2061,8 @@ if __name__ == "__main__":
             token = open(cfg).read().strip()
 
     if not token:
-        print("usage: python app.py <PUTIO_TOKEN>")
-        print("   or: PUTIO_TOKEN=xxx python app.py")
+        print("usage: putio-tui <PUTIO_TOKEN>")
+        print("   or: PUTIO_TOKEN=xxx putio-tui")
         print("   or: echo TOKEN > ~/.config/putio-tui/token")
         sys.exit(1)
 
