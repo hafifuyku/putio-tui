@@ -2132,22 +2132,112 @@ class PutioTUI(App):
         )
 
 
+PUTIO_CLIENT_ID = "9034"
+TOKEN_PATH = os.path.expanduser("~/.config/putio-tui/token")
+
+
+def _read_saved_token() -> str:
+    """Read token from env var or config file."""
+    tok = os.environ.get("PUTIO_TOKEN", "")
+    if tok:
+        return tok
+    if os.path.exists(TOKEN_PATH):
+        return open(TOKEN_PATH).read().strip()
+    return ""
+
+
+def _save_token(token: str) -> None:
+    """Save token to config file."""
+    os.makedirs(os.path.dirname(TOKEN_PATH), exist_ok=True)
+    with open(TOKEN_PATH, "w") as f:
+        f.write(token)
+    os.chmod(TOKEN_PATH, 0o600)
+
+
+def _oauth_login() -> str:
+    """Open browser for put.io OAuth and capture the token via local server."""
+    import http.server
+    import webbrowser
+    import urllib.parse
+
+    token_result: list[str] = []
+
+    # Page that extracts the token from the URL fragment and sends it to our server
+    CALLBACK_HTML = """<!DOCTYPE html>
+<html><body>
+<p>Logging in...</p>
+<script>
+const hash = window.location.hash.substring(1);
+const params = new URLSearchParams(hash);
+const token = params.get("access_token");
+if (token) {
+    fetch("/save_token?token=" + token).then(() => {
+        document.body.innerHTML = "<p>Done! You can close this tab.</p>";
+    });
+} else {
+    document.body.innerHTML = "<p>Error: no token received.</p>";
+}
+</script>
+</body></html>"""
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path.startswith("/save_token"):
+                qs = urllib.parse.urlparse(self.path).query
+                params = urllib.parse.parse_qs(qs)
+                token = params.get("token", [""])[0]
+                if token:
+                    token_result.append(token)
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"ok")
+            else:
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.end_headers()
+                self.wfile.write(CALLBACK_HTML.encode())
+
+        def log_message(self, format, *args):
+            pass  # silence request logs
+
+    port = 23456
+    server = http.server.HTTPServer(("127.0.0.1", port), Handler)
+    redirect_uri = f"http://localhost:{port}/callback"
+
+    auth_url = (
+        f"https://app.put.io/v2/oauth2/authenticate"
+        f"?client_id={PUTIO_CLIENT_ID}"
+        f"&response_type=token"
+        f"&redirect_uri={redirect_uri}"
+    )
+
+    print(f"Opening browser to log in to put.io...")
+    print(f"If the browser doesn't open, visit: {auth_url}")
+    webbrowser.open(auth_url)
+
+    # Wait for the callback
+    while not token_result:
+        server.handle_request()
+
+    server.server_close()
+    return token_result[0]
+
+
 def main():
     # Accept token as argument or env var
     if len(sys.argv) > 1 and not sys.argv[1].startswith("-"):
         os.environ["PUTIO_TOKEN"] = sys.argv[1]
+        _save_token(sys.argv[1])
 
-    token = os.environ.get("PUTIO_TOKEN", "")
-    if not token:
-        cfg = os.path.expanduser("~/.config/putio-tui/token")
-        if os.path.exists(cfg):
-            token = open(cfg).read().strip()
+    token = _read_saved_token()
 
     if not token:
-        print("usage: putio-tui <PUTIO_TOKEN>")
-        print("   or: PUTIO_TOKEN=xxx putio-tui")
-        print("   or: echo TOKEN > ~/.config/putio-tui/token")
-        sys.exit(1)
+        token = _oauth_login()
+        if not token:
+            print("Login failed. No token received.")
+            sys.exit(1)
+        _save_token(token)
+        print("Logged in! Token saved to ~/.config/putio-tui/token")
 
     os.environ["PUTIO_TOKEN"] = token
     app = PutioTUI()

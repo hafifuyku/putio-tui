@@ -10,34 +10,13 @@ A terminal UI client for [put.io](https://put.io).
 brew install hafifuyku/putio-tui/putio-tui
 ```
 
-## Get a put.io token
-
-1. Go to https://app.put.io/oauth
-2. Create a new OAuth app (or use an existing one)
-3. Copy the OAuth token
-
 ## Usage
 
-Pass the token as an argument:
-
 ```
-putio-tui YOUR_TOKEN
-```
-
-Or set it as an environment variable:
-
-```
-export PUTIO_TOKEN=YOUR_TOKEN
 putio-tui
 ```
 
-Or save it to a config file (so you never have to pass it again):
-
-```
-mkdir -p ~/.config/putio-tui
-echo YOUR_TOKEN > ~/.config/putio-tui/token
-putio-tui
-```
+On first run, your browser will open to log in to put.io. The token is saved to `~/.config/putio-tui/token` automatically.
 
 ## Keys
 
