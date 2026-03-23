@@ -6,23 +6,9 @@ A terminal UI client for [put.io](https://put.io).
 
 ## Install
 
-### Homebrew
-
 ```
 brew install hafifuyku/putio-tui/putio-tui
 ```
-
-### Manual
-
-Download the latest binary from [releases](https://github.com/hafifuyku/putio-tui/releases):
-
-```
-curl -L https://github.com/hafifuyku/putio-tui/releases/latest/download/putio-tui -o putio-tui
-chmod +x putio-tui
-mv putio-tui /usr/local/bin/
-```
-
-> Manual binary is macOS ARM64 (Apple Silicon) only.
 
 ## Get a put.io token
 
