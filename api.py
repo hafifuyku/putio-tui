@@ -165,6 +165,7 @@ class TransferInfo:
     seeds: int = 0
     file_id: int | None = None
     save_parent_id: int = 0
+    uploaded: str = ""
 
 
 @dataclass
@@ -172,7 +173,7 @@ class EventInfo:
     name: str
     action: str
     timestamp: str
-    detail: str = ""
+    file_id: int | None = None
     username: str = ""  # non-empty if event is from another user
 
 
@@ -279,6 +280,7 @@ def list_transfers() -> list[TransferInfo]:
             seeds=t.get("peers_sending_to_us", 0),
             file_id=t.get("file_id"),
             save_parent_id=t.get("save_parent_id", 0),
+            uploaded=_fmt_size(t.get("uploaded", 0)),
         ))
     return transfers
 
@@ -304,8 +306,7 @@ def list_events() -> list[EventInfo]:
         action = action_map.get(etype, etype.replace("_", " "))
 
         timestamp = _fmt_time_ago(e.get("created_at", ""))
-        size = e.get("file_size", 0)
-        detail = _fmt_size(size) if size else ""
+        file_id = e.get("file_id") or e.get("transfer_file_id")
 
         # Check if event is from a different user (shared/family accounts)
         sharing_user = e.get("sharing_user_name", "") or e.get("user_name", "")
@@ -314,7 +315,7 @@ def list_events() -> list[EventInfo]:
             name=file_name,
             action=action,
             timestamp=timestamp,
-            detail=detail,
+            file_id=file_id,
             username=sharing_user,
         ))
     return events
@@ -357,6 +358,11 @@ def cancel_transfer(transfer_id: int) -> dict:
     return json.loads(resp.read())
 
 
+def clean_transfers() -> dict:
+    """Clear completed transfers."""
+    return _post("/transfers/clean")
+
+
 def delete_file(file_id: int | list[int]) -> dict:
     """Delete one or more files/folders."""
     import urllib.parse
@@ -397,6 +403,24 @@ def search_files(query: str) -> list[FileInfo]:
             parent_id=f.get("parent_id", 0),
         ))
     return files
+
+
+def get_file(file_id: int) -> FileInfo:
+    """Get info for a single file/folder."""
+    data = _get(f"/files/{file_id}")
+    f = data.get("file", {})
+    is_dir = f.get("file_type") == "FOLDER"
+    size_bytes = f.get("size", 0)
+    return FileInfo(
+        id=f.get("id", 0),
+        name=f.get("name", ""),
+        is_dir=is_dir,
+        size=_fmt_size(size_bytes),
+        size_bytes=size_bytes,
+        modified=_fmt_time_ago(f.get("updated_at", "")),
+        content_type=f.get("content_type", ""),
+        parent_id=f.get("parent_id", 0),
+    )
 
 
 def get_download_url(file_id: int) -> str:

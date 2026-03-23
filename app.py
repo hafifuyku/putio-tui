@@ -66,6 +66,7 @@ class Transfer:
     tags: list[str] = field(default_factory=list)
     transfer_id: int = 0  # put.io transfer ID
     status: str = ""
+    uploaded: str = ""
 
 
 @dataclass
@@ -73,7 +74,7 @@ class HistoryEntry:
     name: str
     action: str
     timestamp: str
-    detail: str = ""
+    file_id: int | None = None
     username: str = ""
 
 
@@ -119,6 +120,7 @@ def _api_transfer_to_transfer(t: putio_api.TransferInfo) -> Transfer:
         seeds=t.seeds,
         transfer_id=t.id,
         status=t.status,
+        uploaded=t.uploaded,
     )
 
 
@@ -128,7 +130,7 @@ def _api_event_to_history(e: putio_api.EventInfo) -> HistoryEntry:
         name=e.name,
         action=e.action,
         timestamp=e.timestamp,
-        detail=e.detail,
+        file_id=e.file_id,
         username=e.username,
     )
 
@@ -680,16 +682,16 @@ class MainView(Static):
             if is_selected:
                 sel = Style(color="#111111", bgcolor=GOLD)
                 name = t.name
-                if len(name) > w - 4:
-                    name = name[:w - 6] + ".."
+                if len(name) > w - 3:
+                    name = name[:w - 5] + ".."
                 tag_str = " " + " ".join(t.tags) if t.tags else ""
-                row_text = f"  {name}{tag_str}"
+                row_text = f" {name}{tag_str}"
                 pad = w - len(row_text)
                 name_line.append(row_text, style=sel)
                 if pad > 0:
                     name_line.append(" " * pad, style=sel)
             else:
-                name_line.append(f"  {t.name}", style=Style(color=TEXT_SEC))
+                name_line.append(f" {t.name}", style=Style(color=TEXT_SEC))
                 if t.tags:
                     name_line.append(f" {' '.join(t.tags)}", style=Style(color=TEXT_GHOST))
                 pad = w - name_line.cell_len
@@ -702,32 +704,61 @@ class MainView(Static):
             bar_w = min(40, w - 30)
             filled = int(bar_w * (t.progress / 100))
             empty = bar_w - filled
-            bar_line.append("    ")
-            bar_line.append("█" * filled, style=Style(color=GOLD))
-            bar_line.append("░" * empty, style=Style(color=TEXT_GHOST))
-            bar_line.append(f"  {t.progress:5.1f}%", style=Style(color=GOLD))
-            if t.speed:
-                bar_line.append(f"  {t.speed}", style=Style(color=TEXT_DIM))
-            if t.eta and t.progress < 100:
-                bar_line.append(f"  eta {t.eta}", style=Style(color=TEXT_GHOST))
-            pad = w - bar_line.cell_len
-            if pad > 0:
-                bar_line.append(" " * pad)
+            is_done = t.progress >= 100
+            if is_selected:
+                bar_color = "#5c4a00" if not is_done else "#2e7d32"
+                bar_line.append(" ", style=sel)
+                bar_line.append("█" * filled, style=Style(color=bar_color, bgcolor=GOLD))
+                bar_line.append("░" * empty, style=Style(color="#5c4a00", bgcolor=GOLD))
+                bar_line.append(f"  {t.progress:5.1f}%", style=Style(color=bar_color, bgcolor=GOLD))
+                if t.speed:
+                    bar_line.append(f"  {t.speed}", style=Style(color="#5c4a00", bgcolor=GOLD))
+                if t.eta and not is_done:
+                    bar_line.append(f"  eta {t.eta}", style=Style(color="#5c4a00", bgcolor=GOLD))
+                pad = w - bar_line.cell_len
+                if pad > 0:
+                    bar_line.append(" " * pad, style=sel)
+            else:
+                if is_done and t.status in ("SEEDING", "seeding"):
+                    bar_color = "#4CAF50"
+                elif is_done:
+                    bar_color = TEXT_SEC
+                else:
+                    bar_color = GOLD
+                bar_line.append(" ")
+                bar_line.append("█" * filled, style=Style(color=bar_color))
+                bar_line.append("░" * empty, style=Style(color=TEXT_GHOST))
+                bar_line.append(f"  {t.progress:5.1f}%", style=Style(color=bar_color))
+                if t.speed:
+                    bar_line.append(f"  {t.speed}", style=Style(color=TEXT_DIM))
+                if t.eta and not is_done:
+                    bar_line.append(f"  eta {t.eta}", style=Style(color=TEXT_GHOST))
+                pad = w - bar_line.cell_len
+                if pad > 0:
+                    bar_line.append(" " * pad)
             lines.append(bar_line)
 
             # Detail line
             det_line = Text()
-            detail = f"    {t.size}"
+            detail = f" {t.size}"
+            if t.uploaded:
+                detail += f" · ↑ {t.uploaded}"
             if t.peers:
                 detail += f" · peers: {t.peers}"
             if t.seeds:
                 detail += f" · seeds: {t.seeds}"
             if t.status and t.progress >= 100:
                 detail += f" · {t.status}"
-            det_line.append(detail, style=Style(color=TEXT_GHOST))
-            pad = w - det_line.cell_len
-            if pad > 0:
-                det_line.append(" " * pad)
+            if is_selected:
+                det_line.append(detail, style=Style(color="#5c4a00", bgcolor=GOLD))
+                pad = w - det_line.cell_len
+                if pad > 0:
+                    det_line.append(" " * pad, style=sel)
+            else:
+                det_line.append(detail, style=Style(color=TEXT_GHOST))
+                pad = w - det_line.cell_len
+                if pad > 0:
+                    det_line.append(" " * pad)
             lines.append(det_line)
 
             # Blank separator
@@ -740,15 +771,13 @@ class MainView(Static):
     def _render_history(self, w: int, h: int) -> list[Text]:
         lines: list[Text] = []
 
-        # Each history entry takes ~2 lines (main + detail)
-        lines_per_item = 2
-        visible_items = max(1, h // lines_per_item)
+        visible_items = max(1, h)
         self._history_scroll = self._ensure_visible(self._history_cursor, self._history_scroll, visible_items)
 
         start = self._history_scroll
-        end = min(start + visible_items + 1, len(_history))
-
-        for idx in range(start, end):
+        for idx in range(start, len(_history)):
+            if len(lines) >= h:
+                break
             e = _history[idx]
             is_selected = idx == self._history_cursor and not self.sidebar_focused
 
@@ -760,47 +789,47 @@ class MainView(Static):
             display_name = e.name
             user_prefix = f"[{e.username}] " if e.username else ""
 
+            # prefix: " ◷  " (4 chars), suffix: "  {timestamp}" (10 chars)
+            prefix = f" {symbol}  "
+            ts_suffix = f"  {e.timestamp:>8}"
+            max_name = w - len(prefix) - len(ts_suffix)
+            name_str = f"{user_prefix}{display_name}"
+            if len(name_str) > max_name:
+                name_str = name_str[:max(0, max_name - 2)] + ".."
+
             if is_selected:
                 sel = Style(color="#111111", bgcolor=GOLD)
                 sel_dim = Style(color="#5c4a00", bgcolor=GOLD)
-                row_text = f" {symbol}  {user_prefix}{display_name}"
-                max_name = w - 14
-                if len(row_text) > max_name:
-                    row_text = row_text[:max_name - 2] + ".."
-                pad_name = max_name - len(row_text)
-                line.append(row_text, style=sel)
+                line.append(prefix + name_str, style=sel)
+                pad_name = max_name - len(name_str)
                 line.append(" " * max(0, pad_name), style=sel)
-                line.append(f"  {e.timestamp:>8}", style=sel_dim)
+                line.append(ts_suffix, style=sel_dim)
                 pad = w - line.cell_len
                 if pad > 0:
                     line.append(" " * pad, style=sel)
             else:
                 line.append(f" {symbol} ", style=Style(color=color, bold=True))
-                max_name = w - 18
-                full_name = f"{user_prefix}{display_name}"
-                if len(full_name) > max_name:
-                    full_name = full_name[:max_name - 2] + ".."
                 if user_prefix:
-                    line.append(f" [{e.username}]", style=Style(color=TEXT_GHOST))
-                    line.append(f" {display_name}" if len(f"{user_prefix}{display_name}") <= max_name else f" {display_name[:max_name - len(user_prefix) - 2]}..", style=Style(color=TEXT_SEC))
+                    uname_part = f" [{e.username}]"
+                    remaining = max_name - len(user_prefix)
+                    if len(display_name) > remaining:
+                        dname_part = f" {display_name[:max(0, remaining - 2)]}.."
+                    else:
+                        dname_part = f" {display_name}"
+                    line.append(uname_part, style=Style(color=TEXT_GHOST))
+                    line.append(dname_part, style=Style(color=TEXT_SEC))
                 else:
-                    line.append(f" {display_name}", style=Style(color=TEXT_SEC))
-                pad_name = max_name - len(full_name)
+                    if len(display_name) > max_name:
+                        line.append(f" {display_name[:max(0, max_name - 2)]}..", style=Style(color=TEXT_SEC))
+                    else:
+                        line.append(f" {display_name}", style=Style(color=TEXT_SEC))
+                pad_name = max_name - len(name_str)
                 line.append(" " * max(0, pad_name))
-                line.append(f"  {e.timestamp:>8}", style=Style(color=TEXT_DIM))
+                line.append(ts_suffix, style=Style(color=TEXT_DIM))
                 pad = w - line.cell_len
                 if pad > 0:
                     line.append(" " * pad)
             lines.append(line)
-
-            # Detail line
-            if e.detail:
-                det = Text()
-                det.append(f"      {e.detail}", style=Style(color=TEXT_GHOST))
-                pad = w - det.cell_len
-                if pad > 0:
-                    det.append(" " * pad)
-                lines.append(det)
 
         while len(lines) < h:
             lines.append(Text(" " * w))
@@ -890,7 +919,7 @@ class MainView(Static):
         elif self.active_view == "transfers":
             actions = [
                 ("Tab", "Switch panes"), ("/", "Search"),
-                ("a", "Add"), ("c", "Cancel"), ("q", "Quit"),
+                ("a", "Add"), ("c", "Cancel"), ("o", "Clear done"), ("q", "Quit"),
             ]
         elif self.active_view == "search":
             actions = [
@@ -1035,6 +1064,31 @@ class MainView(Static):
                 self._files_scroll = 0
                 self._load_files(selected.file_id, add_parent=True)
                 self.active_view = "files"
+            return
+        if self.active_view == "history":
+            if not _history:
+                return
+            entry = _history[self._history_cursor]
+            if not entry.file_id:
+                return
+            try:
+                finfo = putio_api.get_file(entry.file_id)
+                parent_id = finfo.parent_id
+                self._folder_stack.clear()
+                if parent_id != 0:
+                    self._folder_stack.append((0, "files/~"))
+                self._current_folder_id = parent_id
+                self.current_path = "files/~"
+                self.cursor = 0
+                self._files_scroll = 0
+                self._load_files(parent_id, add_parent=parent_id != 0)
+                for i, f in enumerate(self._files):
+                    if f.file_id == entry.file_id:
+                        self.cursor = i
+                        break
+                self.active_view = "files"
+            except Exception as e:
+                self.app.notify(f"File not found: {e}", severity="error")
             return
         if self.active_view != "files" or not self._files:
             return
@@ -1837,6 +1891,8 @@ class PutioTUI(App):
         Binding("f8", "delete_item", "Delete"),
         Binding("f10", "quit", "Quit"),
         Binding("slash", "search", "Search"),
+        Binding("c", "cancel_transfer", "Cancel Transfer"),
+        Binding("o", "clean_transfers", "Clear Completed"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -1893,6 +1949,33 @@ class PutioTUI(App):
 
     def action_page_up(self) -> None:
         self._mv().page_up()
+
+    def action_cancel_transfer(self) -> None:
+        mv = self._mv()
+        if mv.active_view != "transfers" or not _transfers:
+            return
+        t = _transfers[mv._transfer_cursor]
+        def on_confirm(confirmed: bool) -> None:
+            if confirmed:
+                try:
+                    putio_api.cancel_transfer(t.transfer_id)
+                    mv.tick_transfers()
+                except Exception as e:
+                    self.notify(f"Error: {e}", severity="error")
+        self.push_screen(
+            DeleteConfirmScreen(t.name, t.size),
+            callback=on_confirm,
+        )
+
+    def action_clean_transfers(self) -> None:
+        mv = self._mv()
+        if mv.active_view != "transfers":
+            return
+        try:
+            putio_api.clean_transfers()
+            mv.tick_transfers()
+        except Exception as e:
+            self.notify(f"Error: {e}", severity="error")
 
     def action_add_transfer(self) -> None:
         def on_result(val: str) -> None:
@@ -2068,4 +2151,4 @@ if __name__ == "__main__":
 
     os.environ["PUTIO_TOKEN"] = token
     app = PutioTUI()
-    app.run()
+    app.run(mouse=False)
