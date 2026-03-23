@@ -2,7 +2,7 @@
 
 A terminal UI client for [put.io](https://put.io), inspired by Midnight Commander.
 
-![putio-tui screenshot](https://put.io/images/logo.svg)
+![putio-tui screenshot](screenshot.png)
 
 ## Install
 
