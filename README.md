@@ -6,20 +6,23 @@ A terminal UI client for [put.io](https://put.io).
 
 ## Install
 
+### Homebrew
+
+```
+brew install hafifuyku/putio-tui/putio-tui
+```
+
+### Manual
+
 Download the latest binary from [releases](https://github.com/hafifuyku/putio-tui/releases):
 
 ```
 curl -L https://github.com/hafifuyku/putio-tui/releases/latest/download/putio-tui -o putio-tui
 chmod +x putio-tui
-```
-
-Move it somewhere in your PATH:
-
-```
 mv putio-tui /usr/local/bin/
 ```
 
-> Currently macOS ARM64 (Apple Silicon) only.
+> Manual binary is macOS ARM64 (Apple Silicon) only.
 
 ## Get a put.io token
 
@@ -66,6 +69,8 @@ putio-tui
 | `s` | Sort |
 | `/` | Search |
 | `a` | Add transfer (magnet/URL) |
+| `c` | Cancel transfer |
+| `o` | Clear completed transfers |
 | `g` / `G` | Jump to top/bottom |
 | `PgUp` / `PgDn` | Page up/down |
 | `1` `2` `3` | Switch to files/transfers/history |
