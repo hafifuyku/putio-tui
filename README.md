@@ -23,10 +23,9 @@ mv putio-tui /usr/local/bin/
 
 ## Get a put.io token
 
-1. Go to https://put.io/v2/oauth2/authenticate?client_id=1&response_type=token&redirect_uri=http://put.io
-2. Log in and authorize
-3. You'll be redirected to a URL like `http://put.io/#access_token=XXXXXXXX`
-4. Copy the token after `access_token=`
+1. Go to https://app.put.io/oauth
+2. Create a new OAuth app (or use an existing one)
+3. Copy the OAuth token
 
 ## Usage
 
