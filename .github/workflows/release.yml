@@ -20,11 +20,15 @@ jobs:
       - name: Generate version
         id: version
         run: |
-          VERSION=$(date -u +%Y.%-m.%-d)
-          # Append .N suffix if tag already exists today
-          EXISTING=$(git tag -l "v${VERSION}*" | wc -l)
-          if [ "$EXISTING" -gt 0 ]; then
-            VERSION="${VERSION}.${EXISTING}"
+          LAST=$(git tag -l 'v*' --sort=-v:refname | head -1 | sed 's/^v//')
+          if [ -z "$LAST" ]; then
+            VERSION="0.3.5"
+          else
+            # Increment the patch number
+            MAJOR=$(echo "$LAST" | cut -d. -f1)
+            MINOR=$(echo "$LAST" | cut -d. -f2)
+            PATCH=$(echo "$LAST" | cut -d. -f3)
+            VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Version: ${VERSION}"
