@@ -12,16 +12,22 @@ A terminal UI client for [put.io](https://put.io).
 brew install hafifuyku/putio-tui/putio-tui
 ```
 
-### Linux / macOS (pip)
+### Linux / macOS (pipx)
 
 ```
 pipx install git+https://github.com/hafifuyku/putio-tui.git
 ```
 
-Or with pip:
+## Upgrade
 
 ```
-pip install git+https://github.com/hafifuyku/putio-tui.git
+brew upgrade putio-tui
+```
+
+or
+
+```
+pipx upgrade putio-tui
 ```
 
 ## Usage
@@ -30,7 +36,7 @@ pip install git+https://github.com/hafifuyku/putio-tui.git
 putio-tui
 ```
 
-On first run, your browser will open to log in to put.io. The token is saved to `~/.config/putio-tui/token` automatically.
+On first run, go to [put.io/link](https://put.io/link) and enter the code shown in your terminal. Your token is saved automatically.
 
 ## Keys
 
