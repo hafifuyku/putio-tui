@@ -6,8 +6,22 @@ A terminal UI client for [put.io](https://put.io).
 
 ## Install
 
+### macOS (Homebrew)
+
 ```
 brew install hafifuyku/putio-tui/putio-tui
+```
+
+### Linux / macOS (pip)
+
+```
+pipx install git+https://github.com/hafifuyku/putio-tui.git
+```
+
+Or with pip:
+
+```
+pip install git+https://github.com/hafifuyku/putio-tui.git
 ```
 
 ## Usage
