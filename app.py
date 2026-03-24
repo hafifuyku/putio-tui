@@ -2155,72 +2155,41 @@ def _save_token(token: str) -> None:
 
 
 def _oauth_login() -> str:
-    """Open browser for put.io OAuth and capture the token via local server."""
-    import http.server
-    import webbrowser
-    import urllib.parse
+    """Device linking flow — user enters a code at put.io/link."""
+    import urllib.request
+    import json
+    import time
 
-    token_result: list[str] = []
+    url = f"https://api.put.io/v2/oauth2/oob/code?app_id={PUTIO_CLIENT_ID}"
+    resp = urllib.request.urlopen(url, timeout=10)
+    data = json.loads(resp.read())
+    code = data.get("code", "")
 
-    # Page that extracts the token from the URL fragment and sends it to our server
-    CALLBACK_HTML = """<!DOCTYPE html>
-<html><body>
-<p>Logging in...</p>
-<script>
-const hash = window.location.hash.substring(1);
-const params = new URLSearchParams(hash);
-const token = params.get("access_token");
-if (token) {
-    fetch("/save_token?token=" + token).then(() => {
-        document.body.innerHTML = "<p>Done! You can close this tab.</p>";
-    });
-} else {
-    document.body.innerHTML = "<p>Error: no token received.</p>";
-}
-</script>
-</body></html>"""
+    if not code:
+        print("Failed to get device code from put.io.")
+        return ""
 
-    class Handler(http.server.BaseHTTPRequestHandler):
-        def do_GET(self):
-            if self.path.startswith("/save_token"):
-                qs = urllib.parse.urlparse(self.path).query
-                params = urllib.parse.parse_qs(qs)
-                token = params.get("token", [""])[0]
-                if token:
-                    token_result.append(token)
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(b"ok")
-            else:
-                self.send_response(200)
-                self.send_header("Content-Type", "text/html")
-                self.end_headers()
-                self.wfile.write(CALLBACK_HTML.encode())
+    print()
+    print("  ┌( ಠ‿ಠ)┘welcome!")
+    print()
+    print(f"  Go to https://put.io/link")
+    print(f"  Enter code: {code}")
+    print()
+    print("Waiting for approval...", end="", flush=True)
 
-        def log_message(self, format, *args):
-            pass  # silence request logs
-
-    port = 23456
-    server = http.server.HTTPServer(("127.0.0.1", port), Handler)
-    redirect_uri = f"http://localhost:{port}/callback"
-
-    auth_url = (
-        f"https://app.put.io/v2/oauth2/authenticate"
-        f"?client_id={PUTIO_CLIENT_ID}"
-        f"&response_type=token"
-        f"&redirect_uri={redirect_uri}"
-    )
-
-    print(f"Opening browser to log in to put.io...")
-    print(f"If the browser doesn't open, visit: {auth_url}")
-    webbrowser.open(auth_url)
-
-    # Wait for the callback
-    while not token_result:
-        server.handle_request()
-
-    server.server_close()
-    return token_result[0]
+    check_url = f"https://api.put.io/v2/oauth2/oob/code/{code}"
+    while True:
+        time.sleep(3)
+        try:
+            resp = urllib.request.urlopen(check_url, timeout=10)
+            result = json.loads(resp.read())
+            token = result.get("oauth_token", "")
+            if token:
+                print(" done!")
+                return token
+        except urllib.error.HTTPError:
+            pass
+        print(".", end="", flush=True)
 
 
 def main():
