@@ -2,49 +2,17 @@ name: Release
 
 on:
   push:
-    branches: [main]
+    tags: ['v*']
 
 jobs:
   release:
-    if: "!contains(github.event.head_commit.author.name, 'github-actions')"
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Generate version
-        id: version
-        run: |
-          LAST=$(git tag -l 'v*' --sort=-v:refname | head -1 | sed 's/^v//')
-          if [ -z "$LAST" ]; then
-            VERSION="0.3.5"
-          else
-            # Increment the patch number
-            MAJOR=$(echo "$LAST" | cut -d. -f1)
-            MINOR=$(echo "$LAST" | cut -d. -f2)
-            PATCH=$(echo "$LAST" | cut -d. -f3)
-            VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
-          fi
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Version: ${VERSION}"
-
-      - name: Update version in pyproject.toml
-        run: |
-          sed -i "s/^version = .*/version = \"${{ steps.version.outputs.version }}\"/" pyproject.toml
-
-      - name: Commit, tag, and push
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add pyproject.toml
-          git diff --cached --quiet && exit 0
-          git commit -m "v${{ steps.version.outputs.version }}"
-          git tag "v${{ steps.version.outputs.version }}"
-          git push origin main --tags
 
       - name: Update Homebrew tap
         uses: actions/checkout@v4
@@ -55,12 +23,13 @@ jobs:
 
       - name: Update formula version
         run: |
+          VERSION=${GITHUB_REF_NAME#v}
           cd homebrew-tap
-          sed -i 's|url "https://github.com/hafifuyku/putio-tui.git".*|url "https://github.com/hafifuyku/putio-tui.git", tag: "v${{ steps.version.outputs.version }}"|' Formula/putio-tui.rb
-          sed -i 's/^  version .*/  version "${{ steps.version.outputs.version }}"/' Formula/putio-tui.rb
+          sed -i 's|url "https://github.com/hafifuyku/putio-tui.git".*|url "https://github.com/hafifuyku/putio-tui.git", tag: "v'"${VERSION}"'"|' Formula/putio-tui.rb
+          sed -i 's/^  version .*/  version "'"${VERSION}"'"/' Formula/putio-tui.rb
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add Formula/putio-tui.rb
           git diff --cached --quiet && exit 0
-          git commit -m "Update putio-tui to v${{ steps.version.outputs.version }}"
+          git commit -m "Update putio-tui to v${VERSION}"
           git push
