@@ -52,7 +52,7 @@ jobs:
         with:
           repository: hafifuyku/homebrew-putio-tui
           path: homebrew-tap
-          token: ${{ secrets.TAP_TOKEN }}
+          token: ${{ secrets.PUTIO_TUI_AUTO_RELEASE }}
 
       - name: Update formula version
         run: |
