@@ -12,7 +12,7 @@ A terminal UI client for [put.io](https://put.io).
 brew install hafifuyku/putio-tui/putio-tui
 ```
 
-### Linux / macOS (pipx)
+### Linux / Windows / macOS (pipx)
 
 ```
 pipx install git+https://github.com/hafifuyku/putio-tui.git
