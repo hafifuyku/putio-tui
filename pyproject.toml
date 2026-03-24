@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "putio-tui"
-version = "0.3.8"
+version = "0.3.9"
 description = "A terminal UI client for put.io"
 requires-python = ">=3.11"
 dependencies = [
