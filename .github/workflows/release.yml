@@ -3,11 +3,10 @@ name: Release
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - '.github/**'
 
 jobs:
   release:
+    if: "!contains(github.event.head_commit.author.name, 'github-actions')"
     runs-on: ubuntu-latest
     permissions:
       contents: write
